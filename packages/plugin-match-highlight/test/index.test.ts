@@ -102,9 +102,37 @@ t.test('should retrieve positions also with typo, if tolerance is used', async (
 
   t.same(results.hits[0].positions, {
     title: { react: [{ start: 16, length: 5 }] },
-    summary: { react: [{ start: 0, length: 5 }] },
-    id: {},
-    slug: {}
+    summary: { react: [{ start: 0, length: 5 }] }
+  })
+})
+
+t.test('should work with string[]', async (t) => {
+  const schema = {
+    items: 'string[]'
+  } as const
+
+  const db = await create({ schema, plugins: [{ name: 'highlight', afterInsert }] })
+
+  await insert(db, { items: ['hello world', 'some text', 'world hello'] })
+
+  const results = await searchWithHighlight(db, { term: 'hello' })
+  t.same(results.hits[0].positions, {
+    'items.0': {
+      hello: [
+        {
+          start: 0,
+          length: 5
+        }
+      ]
+    },
+    'items.2': {
+      hello: [
+        {
+          start: 6,
+          length: 5
+        }
+      ]
+    }
   })
 })
 

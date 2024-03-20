@@ -59,12 +59,16 @@ async function recursivePositionInsertion<T extends AnyOrama, ResultDocument = T
   for (const key of Object.keys(doc as object) as Array<keyof ResultDocument>) {
     const isNested = typeof doc[key] === 'object'
     const isSchemaNested = typeof schema[key] === 'object'
+    const isNestedArray = typeof schema[key] === 'string' && schema[key].endsWith('[]')
+    const isArraySchema = typeof schema === 'string' && schema.endsWith('[]')
     const propName = `${prefix}${String(key)}`
-    if (isNested && key in schema && isSchemaNested) {
-      recursivePositionInsertion(orama, doc[key], id, propName + '.', schema[key])
-    }
-    if (!(typeof doc[key] === 'string' && key in schema && !isSchemaNested)) {
-      continue
+    if (!isArraySchema) {
+      if (isNestedArray || (isNested && key in schema && isSchemaNested)) {
+        recursivePositionInsertion(orama, doc[key], id, propName + '.', schema[key])
+      }
+      if (!(typeof doc[key] === 'string' && key in schema && !isSchemaNested)) {
+        continue
+      }
     }
     orama.data.positions[id][propName] = Object.create(null)
     const text = doc[key] as string
@@ -123,7 +127,9 @@ export async function searchWithHighlight<T extends AnyOrama, ResultDocument = T
           }
         }
       }
-      hits.push([propName, Object.fromEntries(matchWithSearchTokens)])
+      if (matchWithSearchTokens.length) {
+        hits.push([propName, Object.fromEntries(matchWithSearchTokens)])
+      }
     }
 
     hitsWithPosition.push(Object.assign(hit, { positions: Object.fromEntries(hits) }))
